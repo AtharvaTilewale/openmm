@@ -210,5 +210,24 @@ class TestPdbxFile(unittest.TestCase):
             self.assertEqual(id, res.id)
             self.assertEqual(code, res.insertionCode)
 
+    def testAlternateLocationWaters(self):
+        """Test reading a file in which waters carry alternate location labels."""
+        pdbx = PDBxFile('systems/waters.cif')
+        residues = list(pdbx.topology.residues())
+        self.assertEqual(['GLY', 'HOH', 'HOH', 'HOH'], [res.name for res in residues])
+        self.assertEqual(['1', '101', '102', '103'], [res.id for res in residues])
+        for res in residues[1:]:
+            self.assertEqual(['O'], [atom.name for atom in res.atoms()])
+
+        # The water at 102 has two alternate locations.  The first one should be used.
+
+        expectedPositions = [
+            Vec3(0.5, 0.0, 0.0),
+            Vec3(0.0, 0.5, 0.0),
+            Vec3(0.0, 0.0, 0.5)]*nanometers
+        for res, expected in zip(residues[1:], expectedPositions):
+            atom = next(res.atoms())
+            self.assertVecAlmostEqual(expected, pdbx.positions[atom.index])
+
 if __name__ == '__main__':
     unittest.main()

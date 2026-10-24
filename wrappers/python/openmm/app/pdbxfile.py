@@ -117,10 +117,18 @@ class PDBxFile(object):
         lastResId = None
         lastInsertionCode = ''
         atomTable = {}
+        labelAtomTable = {}
         atomsInResidue = set()
         models = []
         for row in atomData.getRowList():
-            atomKey = ((row[resIdCol], row[chainIdCol], row[atomNameCol]))
+            if resInsertionCol == -1:
+                insertionCode = ''
+            else:
+                insertionCode = row[resInsertionCol]
+            if insertionCode in ('.', '?'):
+                insertionCode = ''
+            atomKey = ((row[resIdCol], row[chainIdCol], row[resNumCol], insertionCode, row[atomNameCol]))
+            labelAtomKey = ((row[resIdCol], row[chainIdCol], row[atomNameCol]))
             model = ('1' if modelCol == -1 else row[modelCol])
             if model not in models:
                 models.append(model)
@@ -133,12 +141,6 @@ class PDBxFile(object):
             if modelIndex == 0:
                 # This row defines a new atom.
 
-                if resInsertionCol == -1:
-                    insertionCode = ''
-                else:
-                    insertionCode = row[resInsertionCol]
-                if insertionCode in ('.', '?'):
-                    insertionCode = ''
                 if lastChainId != row[chainIdCol] or (altChainIdCol != -1 and lastAltChainId != row[altChainIdCol]):
                     # The start of a new chain.
                     chain = top.addChain(row[chainIdCol])
@@ -171,6 +173,7 @@ class PDBxFile(object):
                     atomName = atomReplacements[atomName]
                 atom = top.addAtom(atomName, element, res, row[atomIdCol])
                 atomTable[atomKey] = atom
+                labelAtomTable[labelAtomKey] = atom
                 atomsInResidue.add(atomName)
             else:
                 # This row defines coordinates for an existing atom in one of the later models.
@@ -214,8 +217,8 @@ class PDBxFile(object):
                 if type in ('covale', 'disulf', 'modres'):
                     key1 = (row[res1Col], row[asym1Col], row[atom1Col])
                     key2 = (row[res2Col], row[asym2Col], row[atom2Col])
-                    if key1 in atomTable and key2 in atomTable:
-                        connectBonds.append((atomTable[key1], atomTable[key2]))
+                    if key1 in labelAtomTable and key2 in labelAtomTable:
+                        connectBonds.append((labelAtomTable[key1], labelAtomTable[key2]))
             if len(connectBonds) > 0:
                 # Only add bonds that don't already exist.
                 existingBonds = set(top.bonds())
